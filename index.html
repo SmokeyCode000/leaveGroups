@@ -13,10 +13,15 @@
       transform: scale(0.97);
       box-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
     }
+    .tilt-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transform-style: preserve-3d;
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-900 flex justify-center items-center min-h-screen">
-  <div class="bg-white p-10 rounded-3xl w-[420px] shadow-2xl border border-gray-200">
+  <div id="card"
+    class="tilt-card bg-white p-10 rounded-3xl w-[420px] shadow-2xl border border-gray-200">
     <h2 class="text-3xl font-bold mb-8 text-center text-blue-600">グループ退出ツール</h2>
 
     <div class="space-y-5">
@@ -76,17 +81,25 @@
       const groups = await getGroupDMs(token, groupName);
       if (groups.length === 0) return logMessage("❌ 対象グループが見つかりません");
 
-      const concurrency = 5; // 最大並列数
+      const concurrency = 5; // 並列数
       let index = 0;
+      let processed = 0;
 
       async function worker() {
         while (index < groups.length) {
           const group = groups[index++];
           await leaveGroup(token, group);
+          processed++;
+
+          // 50件ごとに5秒休憩
+          if (processed % 50 === 0) {
+            logMessage("⏸ 50件処理完了 → 5秒休憩中...");
+            await new Promise((r) => setTimeout(r, 5000));
+            logMessage("▶️ 再開");
+          }
         }
       }
 
-      // 並列ワーカーを起動
       await Promise.all(Array.from({ length: concurrency }, worker));
 
       logMessage("🎉 すべてのグループDMから退出しました");
@@ -101,6 +114,28 @@
     function goHome() {
       window.location.href = "https://smokeycode000.github.io/home/";
     }
+
+    // カードをカーソル方向にめくる動き
+    const card = document.getElementById("card");
+    card.addEventListener("mousemove", (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const rotateX = ((y - centerY) / centerY) * -10; // 上下傾き
+      const rotateY = ((x - centerX) / centerX) * 10;  // 左右傾き
+
+      card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+      card.style.boxShadow = `${-rotateY}px ${rotateX}px 20px rgba(0,0,0,0.2)`;
+    });
+
+    card.addEventListener("mouseleave", () => {
+      card.style.transform = "rotateX(0deg) rotateY(0deg)";
+      card.style.boxShadow = "0 0 20px rgba(0,0,0,0.1)";
+    });
   </script>
 </body>
 </html>
